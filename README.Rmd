@@ -1,5 +1,14 @@
-# About the project
+---
+title: "Introduction to Open Data Science, spring 2017"
+output: 
+  html_document:
+    theme: united
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
 After completing this course I will understand the principles and advantages of using open research tools with open data and understand the possibilities of reproducible research. I will know how to use R, R Studio, R markdown, and GitHub for these tasks and also know how to learn more of these open software tools. I will also know how to apply certain statistical methods of data science, that is, data-driven statistics.
 
-[My project repository](https://github.com/lex/iods-project)
+[My course diary](https://lex.github.io/iods-project)
