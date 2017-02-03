@@ -1,7 +1,152 @@
-# Insert chapter 2 title here
+# Week 2: Analysis of the students2014 data
 
-*Describe the work you have done this week and summarize your learning.*
+```{r, echo=FALSE, message=FALSE}
+learning2014 <- read.csv("http://s3.amazonaws.com/assets.datacamp.com/production/course_2218/datasets/learning2014.txt")
+library(GGally)
+library(ggplot2)
+```
+## The dataset
 
-- Describe your work and results clearly. 
-- Assume the reader has an introductory course level understanding of writing and reading R code as well as statistical methods
-- Assume the reader has no previous knowledge of your data or the more advanced methods you are using  
+The data was collected for studying a relationship between academic achievement and different factors. The most interesting ones are about studying behavior.
+
+The data was collected during the second part of the course *Introduction to Social Statistics*, fall 2014, held by Kimmo Vehkalahti at the University of Helsinki, Finland.  
+
+*(n=183, 67% female, mean age 25.6 years, 77.6% social science students)*
+
+```{r}
+str(learning2014)
+dim(learning2014)
+```
+
+The data contains 166 observations and seven variables.
+
+## Overview of the data
+
+```{r}
+p <- ggpairs(learning2014, mapping = aes(col=gender, alpha=0.3), lower = list(combo = wrap("facethist", bins = 20)))
+
+p
+```
+
+The scatter plot doesn't reveal much, except that there is a pretty high correlation between attitude and exam points (0.437) compared to everything else. We'll take a look at that later.
+
+<br>
+
+#### Gender
+```{r}
+summary(learning2014$gender)
+```
+
+- 110 female participants, 56 male  
+- About double the female participants compared to male students  
+
+<br>
+
+#### Age
+```{r}
+summary(learning2014$age)
+```
+- The youngest participant was only 17 years old  
+- The oldest participant was 55 years old  
+- The median age was 22 years
+
+<br>
+
+#### Attitude
+```{r}
+summary(learning2014$attitude)
+```
+- On the Likert scale (1-5)
+- Attitudes seem pretty neutral (median attitude of 3.2)
+
+<br>
+
+#### 1st learning approach: Deep Learning
+```{r}
+summary(learning2014$deep)
+```
+- On a Likert scale (1-5)
+- Seems like the most common learning style (highest median of the learning styles)
+
+<br>
+
+#### 2nd learning approach: Surface Learning
+```{r}
+summary(learning2014$surf)
+```
+- On a Likert scale (1-5)
+- Seems like the most uncommon learning style (lowest median of the learning styles)
+
+<br>
+
+#### 3rd learning approach: Strategic Learning
+```{r}
+summary(learning2014$stra)
+```
+- On a Likert scale (1-5)
+- Seems like the most average learning method
+
+<br>
+
+#### Exam Points
+```{r}
+summary(learning2014$points)
+```
+
+- Maximum achieved points were 33
+- Minimum were 7
+- Median points were 23
+
+## Regression model
+
+The goal is to find a correlation between exam points and some variables. I picked age, attitude and strategic learning.
+
+
+```{r}
+model <- lm(points ~ age + attitude + stra, data=learning2014)
+summary(model)
+```
+
+Age does not seem to fit in the model very well. I expected using strategic learning to have some effect on the points achieved, but it turned out to be not statistically significant. Only attitude seems to be relevant, so that's what we'll use in our next and final model:
+
+```{r}
+model <- lm(points ~ attitude, data=learning2014)
+summary(model)
+```
+
+Residuals tell the difference between observed values and the estimated values by the model. The median residual is pretty low at 0.4, but the minimum residual is pretty high. It tells us that the worst observed exam points were expected 17 points higher by the model. The same happens with maximum residual: the highest points were expected to be ten points lower.
+
+The t value tells us the t test statistic. Higher t values are more significant to the model, but alone it doesn't mean much, because it depends on the degrees of freedom. However the column *Pr(>|t|)* with the three stars (***) tells us that it's statistically significant.
+
+The multiple R-squared is 0.195 (19.5%). It tells how close the data is to the fitted regression line. It goes up with more variables, so in this case it goes down from dropping the two insignificant variables.
+
+## Diagnostic plots
+
+```{r}
+plot(model, which=c(1))
+```
+
+Residuals vs fitted is used to detect non-linearity. If there would be visible patterns in our line, there could be a problem with our model. Our line is pretty straight, so our model seems fine.
+
+<br>
+
+```{r}
+plot(model, which=c(2))
+```
+
+Q-Q plot is used to check if the residuals of the model are normally distributed. Ideally all the points would be aligned to the dotted line. With our model the line from the points is a bit curved, but still pretty close to the ideal line.
+
+<br>
+
+```{r}
+plot(model, which=c(5))
+```
+
+This plot tells if there are influential cases which could affect the regression line. In our model there seems to be none, since there even aren't any Cook's lines visible in the plot.
+
+<br>
+
+### References:
+http://www.helsinki.fi/~kvehkala/JYTmooc/JYTOPKYS3-meta.txt
+
+http://www.slideshare.net/kimmovehkalahti/the-relationship-between-learning-approaches-and-students-achievements-in-an-introductory-statistics-course-in-finland
