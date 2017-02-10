@@ -1,0 +1,130 @@
+# Week 3: Analysis of the alcohol use data
+
+```{r, echo=FALSE, message=FALSE}
+alcohol_use <- read.csv("http://s3.amazonaws.com/assets.datacamp.com/production/course_2218/datasets/alc.txt")
+library(GGally)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(boot)
+```
+
+## The dataset
+
+The data includes data about the alcohol use of some students at the University Of Camerino, Italy. It has been joined from two courses, the Portuguese language course and the math course.
+
+There is a lot of background information about the participants, for example their father's and mother's jobs, travel times to school and such.
+
+Obligatory citation from the original data:
+*Using Data Mining To Predict Secondary School Student Alcohol Consumption. 
+Fabio Pagnotta, Hossain Mohammad Amran 
+Department of Computer Science,University of Camerino*
+
+```{r}
+colnames(alcohol_use)
+dim(alcohol_use)
+```
+
+The data contains 382 observations and 35 variables.
+
+## Relationships between high and low alcohol consumption
+
+#### 1. Time spent on studying per week
+
+I'm expecting lower study time to mean a higher alcohol consumption.  
+The codes you will see later have the following meaning:  
+*1 - <2 hours, 2 - 2 to 5 hours, 3 - 5 to 10 hours, or 4 - >10 hours*
+
+#### 2. Address type
+
+I'm expecting people living in cities to use more alcohol.
+Living areas are coded as follows: 'U' - urban or 'R' - rural.
+
+#### 3. Sex
+
+I'm expecting men to have a higher alcohol use.
+
+#### 4. Going out with friends
+
+I'm expecting going out more to increase alcohol use. The answers range from 1 (very low) to 5 (very high).
+
+### Some plots
+
+```{r}
+ggplot(alcohol_use, aes(x = studytime, fill = high_use)) + geom_bar(position = "fill") + ggtitle("Study time vs alcohol use")
+```
+
+Spending less time on studies seems to have an increasing effect on alcohol consumption.
+
+```{r}
+ggplot(alcohol_use, aes(x = address, fill = high_use)) + geom_bar(position = "fill") + ggtitle("Living area vs alcohol use")
+```
+
+I was expecting students living in urban areas (U) to drink more, but it seems like rural (R) students drink more. The difference is not that great, but that's something to look at.
+
+```{r}
+ggplot(alcohol_use, aes(x = sex, fill = high_use)) + geom_bar(position = "fill") + ggtitle("Sex vs alcohol use")
+```
+
+It seems like men are more likely to consume more alcohol than their female counterparts.
+
+```{r}
+ggplot(alcohol_use, aes(x = goout, fill = high_use)) + geom_bar(position = "fill") + ggtitle("Going out vs alcohol use")
+```
+
+Looks like high alcohol use rises with the frequency of going out pretty significantly.
+
+
+## Logistic regression
+
+```{r}
+m <- glm(high_use ~ studytime + address + sex + goout, data = alcohol_use, family = "binomial")
+summary(m)
+```
+
+Living area and sex have some effect, but not as much as the frequency of going out or time spent on studying. Going out seems to have the most effect.
+
+```{r, message = FALSE}
+OR <- coef(m) %>% exp
+CI <- confint(m) %>% exp
+cbind(OR, CI)
+```
+The odds ratios seems to indicate that being male and going out give the highest odds of experiencing a high alcohol consumption. The confidence values for them are high though. Judging by them it seems like time spent on studying and living in urban areas would make high alcohol use more unlikely than being a male and going out more to make it more likely.
+
+```{r, message = FALSE}
+probabilities <- predict(m, type = "response")
+
+# add the predicted probabilities to 'alcohol_use'
+alcohol_use <- mutate(alcohol_use, probability = probabilities)
+
+# use the probabilities to make a prediction of high_use
+alcohol_use <- mutate(alcohol_use, prediction = probability > 0.5)
+
+# tabulate the target variable versus the predictions
+table(high_use = alcohol_use$high_use, prediction = alcohol_use$prediction) %>% prop.table() %>% addmargins()
+```
+
+The model gives false positives at a 4% rate and true negatives at a 18% rate. The interesting thing is that actual positives are predicted at a lower rate than negatives that are actually positive.
+
+```{r, message = FALSE}
+loss_func <- function(class, prob) {
+  n_wrong <- abs(class - prob) > 0.5
+  mean(n_wrong)
+}
+loss_func(class = alcohol_use$high_use, prob = alcohol_use$probability)
+cv <- cv.glm(data = alcohol_use, cost = loss_func, glmfit = m, K = 10)
+cv$delta[1]
+```
+
+22.2% error on model, ~23% error on the cross validation depending on the run. It would seem like my model has a better performance compared to the model in DataCamp (26%).
+
+```{r, message = FALSE}
+# initialize a plot of 'high_use' versus 'probability' in 'alc'
+g <- ggplot(alcohol_use, aes(x = probability, y = high_use, col = prediction))
+
+# define the geom as points and draw the plot
+g + geom_point()
+```
+
+### References
+https://archive.ics.uci.edu/ml/datasets/STUDENT+ALCOHOL+CONSUMPTION
