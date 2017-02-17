@@ -1,0 +1,158 @@
+# Week 4: Analysis of the Boston housing data
+
+```{r, echo=FALSE, message=FALSE}
+library(MASS)
+library(GGally)
+library(dplyr)
+library(corrplot)
+data("Boston")
+
+# set seed for the sake of reproducibility
+set.seed(2017)
+```
+
+## The dataset
+
+We are going to use the Boston dataset included in the package *"Mass"*. The data deals with housing values in the suburbs of Boston. It includes some background data, for example the average rooms in the dwelling and the distance to Boston employment centres. Crime rate will be the main variable in this analysis, since that's the target variable in most of the exercises.
+
+The variables are covered in detail [here](https://stat.ethz.ch/R-manual/R-devel/library/MASS/html/Boston.html) for the interested.
+
+```{r}
+str(Boston)
+```
+
+## Overview of the data
+
+```{r}
+summary(Boston)
+```
+
+The scales seem to vary considerably between the variables. For example *tax* has a maimum value of 711.0, while *nox* has a maximum value of 0.8710. That is going to be a problem when we're trying to categorize the data. We're going to deal with that issue soon.
+
+```{r}
+correlation_matrix <- cor(Boston) %>% round(digits = 2)
+corrplot(correlation_matrix, method = "circle", type = "upper", cl.pos = "b", tl.pos = "d", tl.cex = 0.6)
+```
+
+The bigger the circle and the more colorful, the more correlation between the variables. For example, there seems to be a strong positive correlation between property-tax rate (tax) and accessibility to radial highways (rad).
+
+## Standardizing the dataset
+
+```{r}
+boston_scaled <- as.data.frame(scale(Boston))
+
+summary(boston_scaled)
+```
+
+After standardizing all the means of the variables become 0. It also makes every variable to have the same scale, so it will be easier to cluster them.
+
+## Linear discriminant analysis with crime rate as the target variable
+
+```{r}
+# Create a categorical variable of the crime rate in the Boston dataset (from the scaled crime rate). Use the quantiles as the break points in the categorical variable. Drop the old crime rate variable from the dataset. 
+
+# save the scaled crim as scaled_crim
+scaled_crim <- scale(boston_scaled$crim)
+
+# create a quantile vector of crim and print it
+bins <- quantile(scaled_crim)
+
+# create a categorical variable 'crime'
+labels = c("low", "med_low", "med_high", "high")
+crime <- cut(scaled_crim, breaks = bins, include.lowest = TRUE, label = labels)
+
+# remove original crim from the dataset
+boston_scaled <- dplyr::select(boston_scaled, -crim)
+
+# add the new categorical value to scaled data
+boston_scaled <- data.frame(boston_scaled, crime)
+
+# Divide the dataset to train and test sets, so that 80% of the data belongs to the train set.
+
+# number of rows in the Boston dataset 
+n <- nrow(boston_scaled)
+
+# choose randomly 80% of the rows
+ind <- sample(n,  size = n * 0.8)
+
+# create train set
+train <- boston_scaled[ind,]
+
+# create test set 
+test <- boston_scaled[-ind,]
+
+# save the correct classes from test data
+correct_classes <- test$crime
+
+# remove the crime variable from test data
+test <- dplyr::select(test, -crime)
+
+# linear discriminant analysis
+lda.fit <- lda(crime ~ ., data = train)
+
+# the function for lda biplot arrows
+lda.arrows <- function(x, myscale = 1, arrow_heads = 0.1, color = "red", tex = 0.75, choices = c(1,2)){
+  heads <- coef(x)
+  arrows(x0 = 0, y0 = 0, 
+         x1 = myscale * heads[,choices[1]], 
+         y1 = myscale * heads[,choices[2]], col = color, length = arrow_heads)
+  text(myscale * heads[,choices], labels = row.names(heads), 
+       cex = tex, col = color, pos = 3)
+}
+
+# target classes as numeric
+classes <- as.numeric(train$crime)
+
+# plot the lda results
+plot(lda.fit, dimen = 2, col = classes, pch = classes)
+lda.arrows(lda.fit, myscale = 1)
+```
+
+The plot seems to indicate that there's a strong correlation between high crime rate and accessibility to radial highways. There's some clear clustering around the medium high category at the bottom left of the plot as well. Medium lows and lows are a bit mixed, but there is some clear clustering among them as well, although not as much as among the others.
+
+## Predicting from our model
+
+```{r}
+# predict classes with test data
+lda.pred <- predict(lda.fit, newdata = test)
+
+# cross tabulate the results
+table(correct = correct_classes, predicted = lda.pred$class)
+```
+
+The model seems to predict high crime rate perfectly. Low and medium crime rates seem to fit in their places as well, but there's more variance among them.
+
+The same effect can be seen from the previous plot. All the high rates are at the far right of the plot while the other values are clustered together at the left side.
+
+## K-means on the data
+
+```{r, warning=FALSE}
+boston_scaled <- as.data.frame(scale(Boston))
+
+distances <- dist(boston_scaled)
+
+k_max <- 10
+
+# calculate the total within sum of squares
+twcss <- sapply(1:k_max, function(k){kmeans(distances, k)$tot.withinss})
+
+# visualize the results
+plot(1:k_max, twcss, type='b')
+```
+
+The "elbow" is at 2, so that's what we should use for our number of centers, and that's what we will use.
+
+```{r, warning=FALSE, message=FALSE}
+# k-means clustering
+km <- kmeans(distances, centers = 2)
+
+boston_scaled$km <- as.factor(km$cluster)
+
+# plot the Boston dataset with clusters
+ggpairs(boston_scaled, ggplot2::aes(colour = km), upper = list(continuous = wrap("cor", size = 4.75, alignPercent = 1)))
+```
+
+K-means creates some clusters, but it's hard to say anything about them. There seems to be some meaning to the two clusters though judging by the charts. The clusters seem to overlap quite much.
+
+### References
+https://stat.ethz.ch/R-manual/R-devel/library/MASS/html/Boston.html
