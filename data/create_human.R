@@ -59,14 +59,14 @@ write.csv(hdi_gii, file="human.csv", row.names=FALSE)
 hdi_gii$gni <- as.numeric(gsub(",", "", hdi_gii$gni))
 
 # 2. Drop unwanted columns
-columns_to_keep <- c("country", 
-                     "secondaryEducationFemale", 
-                     "secondaryEducationMale", 
-                     "expectedYearsOfEducation", 
-                     "lifeExpectancy", 
-                     "gni", 
-                     "maternalMortalityRatio", 
-                     "adolescentBirthRate", 
+columns_to_keep <- c("country",
+                     "femaleToMaleEducationRatio",
+                     "labourParticipationRatio",
+                     "expectedYearsOfEducation",
+                     "lifeExpectancy",
+                     "gni",
+                     "maternalMortalityRatio",
+                     "adolescentBirthRate",
                      "representationInParliament"
                      )
 
