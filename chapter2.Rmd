@@ -4,6 +4,9 @@
 learning2014 <- read.csv("http://s3.amazonaws.com/assets.datacamp.com/production/course_2218/datasets/learning2014.txt")
 library(GGally)
 library(ggplot2)
+
+# set seed for the sake of reproducibility
+set.seed(2017)
 ```
 ## The dataset
 

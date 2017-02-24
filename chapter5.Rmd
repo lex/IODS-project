@@ -1,0 +1,116 @@
+# Week 5: Analysis of the HDI data
+
+```{r, echo=FALSE, message=FALSE}
+library(MASS)
+library(GGally)
+library(dplyr)
+library(tidyr)
+library(corrplot)
+library("devtools")
+install_github("kassambara/factoextra")
+library("factoextra")
+library(FactoMineR)
+
+human <- read.csv("data/human.csv", row.names = 1)
+
+# set seed for the sake of reproducibility
+set.seed(2017)
+```
+
+## The dataset
+
+The dataset is a joined dataset from two sets from [the United Nations Development Programme](http://hdr.undp.org/en/content/human-development-index-hdi). The data deals with statistics about countries. We've created two more variables into the data: female to male education ratio and female to male labor participation ratio.
+
+```{r}
+str(human)
+```
+
+## Overview of the data
+
+```{r}
+summary(human)
+```
+
+The maximum values of the variables we've introduced seem pretty interesting. The maximum value for female to male education ratio is 1.5, which belongs to Gabon. A bit surprisingly the minimum labor participation ratio is as high as 18.5%, considering there are some countries in our data which have very limited women's rights.
+
+```{r}
+correlation_matrix <- cor(human) %>% round(digits = 2)
+corrplot(correlation_matrix, method = "circle", type = "upper", cl.pos = "b", tl.pos = "d", tl.cex = 0.6)
+```
+
+The correlation matrix seems to indicate some heavy negative correlation between education and birth rate, which could explain the current situation in western countries. Mothers seem to die less if they're educated as well.
+
+## Principal Component Analysis
+
+```{r, warning=FALSE, fig.width=20, fig.height=20}
+# perform principal component analysis (with the SVD method)
+pca_human <- prcomp(human)
+
+# draw a biplot of the principal component representation and the original variables
+biplot(pca_human, cex = c(2, 2), col = c("#333333", "#dd4814"))
+```
+
+The plot looks very one dimensional, so there's not much to say here. The only arrow visible is GNI. Maybe standardizing will help.
+
+## PCA with standardized data
+
+```{r, warning=FALSE, fig.width=20, fig.height=20}
+human_scaled <- scale(human)
+
+# perform principal component analysis (with the SVD method)
+pca_human_scaled <- prcomp(human_scaled)
+
+# s <- summary(pca_human_scaled)
+
+# rounded percetanges of variance captured by each PC
+# pca_pr <- round(100*s$importance[2, ], digits = 1)
+
+# create object pc_lab to be used as axis labels
+# pc_lab <- paste0(names(pca_pr), " (", pca_pr, "%)")
+
+# draw a biplot of the principal component representation and the original variables
+biplot(pca_human_scaled, cex = c(2, 2), col = c("#333333", "#dd4814"), xlab = "Well being", ylab = "Equality")
+```
+
+After standardizing the plot begins to make sense. It looks like education and life expectancy are closely related, birth rate and maternal mortality are highly related. Representation and parliament and labor ratio seems to be related, but not as strongly as the ones mentioned previously. We can also create a nicer plot of these findings:
+
+Seems like pretty much all the countries at the right side of the plot are experiencing high birth rate and maternal mortality, and pretty much all the countries seem to be from Africa.
+
+PC1 (x-axis) seems to represent well being of a country, since it deals with life and death (and also education). PC2 (y-axis) is a bit more complicated one to decide. It could be labeled as equality, since it consists of labor participation and representation in the government.
+
+## Time for some tea
+
+We're going to look at some tea data provided by [Factominer](http://factominer.free.fr). It consists of data about how people drink their tea.
+
+I selected some interesting variables for us to look at:
+
+```{r, warning=FALSE}
+data(tea)
+
+tea_columns_to_keep <- c("Tea", "How", "how", "sugar", "breakfast", "sex", "SPC", "relaxing")
+
+custom_tea <- dplyr::select(tea, dplyr::one_of(tea_columns_to_keep))
+
+gather(custom_tea) %>% ggplot(aes(value)) + facet_wrap("key", scales = "free") + geom_bar(fill = "#dd4814") + theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8))
+```
+
+It seems like breakfast tea is very popular, and there's pretty much a 50% chance of sugar use.
+
+## Multiple Correspondence Analysis on the tea data
+
+```{r, warning=FALSE, fig.width=10, fig.height=10}
+# multiple correspondence analysis
+mca <- MCA(custom_tea, graph = FALSE)
+
+# summary of the model
+summary(mca)
+
+# visualize MCA
+plot(mca, invisible = c("ind"), habillage = "quali")
+```
+
+The percentages of explained variance are pretty low, and that can be seen from the plot as well: most of the variables seem to be around the center.
+
+Milk use and being a men seem to be related, as well as being an employee and having no breakfast, which makes sense. Employees also seem to drink their tea alone. Non working people also seem to not put sugar in their tea. Black tea seems to be mostly unpackaged.
+
+Students, workmen and seniors stand out in the plot. They do not seem be related with any of the other groups.

@@ -7,6 +7,9 @@ library(tidyr)
 library(dplyr)
 library(ggplot2)
 library(boot)
+
+# set seed for the sake of reproducibility
+set.seed(2017)
 ```
 
 ## The dataset
